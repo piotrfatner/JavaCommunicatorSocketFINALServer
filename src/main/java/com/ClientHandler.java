@@ -1,6 +1,8 @@
 package com;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.Map;
@@ -9,100 +11,65 @@ import java.util.Scanner;
 public class ClientHandler extends Thread {
     private String name;
     private Socket socket;
-    private Scanner input;
-    private PrintWriter output;
+    private ObjectInputStream input;
+    private ObjectOutputStream output;
 
     /**
      * Constructs a handler thread, squirreling away the socket. All the interesting
      * work is done in the run method. Remember the constructor is called from the
      * server's main method, so this has to be as short as possible.
      */
-    public ClientHandler(Socket socket){
+    public ClientHandler(Socket socket) {
         this.socket = socket;
     }
 
-    public void run(){
+    public void run() {
         try {
-            input = new Scanner(socket.getInputStream());
-            output = new PrintWriter(socket.getOutputStream(), true);
+            output = new ObjectOutputStream(socket.getOutputStream());
+            input = new ObjectInputStream(socket.getInputStream());
             String userNameToTalkTo;
 
             // Keep requesting till user write a unique name
-            while(true){
-                output.println("Write name:");
-                name = input.nextLine();
-                if(name == null){
+            while (true) {
+                //output.println("Write name:");
+                Message mB2 = new Message(EMessageType.SERVER_WAITING, "WAIT");
+                output.writeObject(mB2);
+                Message m = (Message) input.readObject();
+
+                name = m.getTextMessage();
+                if (name == null) {
                     return;
                 }
-                synchronized (SocketServer.getUserNames()){
-                    if(!SocketServer.getUserNames().contains(name)){
-                        SocketServer.getUserNames().add(name);
-                        SocketServer.getUserPrintWriters().add(output);
+                synchronized (SocketServer.getUserNames()) {
+                    if (SocketServer.getUserNames().contains(name)) {
+                        //SocketServer.getUserNames().add(name);
+                        //SocketServer.getUserPrintWriters().add(output);
                         SocketServer.getUserNameAndPrintWriterMap().put(name, output);
                         break;
+                    } else {
+                        Message mB = new Message(EMessageType.SERVER_REJECTED, "Error");
+                        output.writeObject(mB);
                     }
                 }
             }
 
             // Tell everyone that this user appeared
-            output.println("USER NAME ACCEPTED " + name);
-            /*for (PrintWriter singlePrintWriter:SocketServer.getUserPrintWriters()
-                    ) {
-                singlePrintWriter.println("MESSAGE FROM SERVER: User " + name + "has joined!");
-            }*/
-            for(Map.Entry<String, PrintWriter> entry : SocketServer.getUserNameAndPrintWriterMap().entrySet()) {
-                if(entry.getKey() != name){
-                    entry.getValue().println("MESSAGE FROM SERVER: User " + name + " has joined!");
-                }
-            }
+            //output.println("USER NAME ACCEPTED " + name);
+            Message messageBack = new Message(EMessageType.SERVER_ACCEPTED, "USER NAME ACCEPTED " + name);
+            output.writeObject(messageBack);
 
-            // Choose user you want to write to
-            String otherUser;
-            while(true){
-                output.println("Write user you want to talk to, if you want to talk with all guys write 'all':");
-                for (Map.Entry<String, PrintWriter> entry : SocketServer.getUserNameAndPrintWriterMap().entrySet()
-                        ) {
-                    if(entry.getKey() != name){
-                        output.println(entry.getKey()+",");
-                    }
-                }
-                otherUser = input.nextLine();
-                if(otherUser.equals("all")){
-                    userNameToTalkTo = "all";
-                    break;
-                }
-                if(SocketServer.getUserNameAndPrintWriterMap().containsKey(otherUser)){
-                    userNameToTalkTo = otherUser;
-                    break;
-                }
 
-            }
 
-            // Keep listening a messages from this user / client socket to some user
-            while(true){
-                String singleInput = input.nextLine();
-                if(singleInput.toLowerCase().startsWith("/quit")){
-                    return;
-                }
-                /*for (PrintWriter singlePrintWriter:SocketServer.getUserPrintWriters()
-                     ) {
-                    singlePrintWriter.println("MESSAGE FROM "+name+": "+ singleInput);
-                }*/
-                if("all".equals(userNameToTalkTo)){
-                    for(Map.Entry<String, PrintWriter> entry : SocketServer.getUserNameAndPrintWriterMap().entrySet()) {
-                        if(entry.getKey() != name){
-                            entry.getValue().println("MESSAGE FROM "+name+": "+ singleInput);
-                        }
-                    }
-                } else{
-                    SocketServer.getUserNameAndPrintWriterMap().get(userNameToTalkTo).println("MESSAGE FROM "+name+": "+ singleInput);
-                }
+            // Listening new messages
+            while (true) {
+                Message m = (Message) input.readObject();
+                handleMessage(m);
             }
 
         } catch (Exception e) {
             e.printStackTrace();
         } finally { // closing socket
-            if(output != null){
+           /* if(output != null){
                 SocketServer.getUserPrintWriters().remove(output);
             }
             if(name != null){
@@ -112,12 +79,38 @@ public class ClientHandler extends Thread {
                      ) {
                     singlePrintWriter.println("MESSAGE FROM "+name+" has left");
                 }
-            }
+            }*/
             try {
                 socket.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
+    }
+
+    public void handleMessage(Message m) throws IOException {
+        // there is handling few kinds of messages
+        switch (m.geteMessageType()){
+            case SERVER_USERS:
+                String avaliableContactList = getAvaliableContactsList();
+                Message newMessage = new Message(EMessageType.SERVER_USERS, avaliableContactList);
+                output.writeObject(newMessage);
+            case TEXT:
+                if(m.getAdressee() != null){
+                    SocketServer.getUserNameAndPrintWriterMap().get(m.getAdressee()).writeObject(m);
+                }
+
+        }
+    }
+
+    public String getAvaliableContactsList() {
+        String messageWithContactList = "";
+        for (String userName : SocketServer.getUserNames()
+                ) {
+            if (!userName.equals(name)) {
+                messageWithContactList += userName + ",";
+            }
+        }
+        return messageWithContactList;
     }
 }
