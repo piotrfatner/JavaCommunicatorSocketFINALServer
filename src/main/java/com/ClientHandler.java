@@ -99,6 +99,10 @@ public class ClientHandler extends Thread {
                 if(m.getAdressee() != null){
                     SocketServer.getUserNameAndPrintWriterMap().get(m.getAdressee()).writeObject(m);
                 }
+            case JPG:
+                if(m.getAdressee() != null){
+                    SocketServer.getUserNameAndPrintWriterMap().get(m.getAdressee()).writeObject(m);
+                }
 
         }
     }
