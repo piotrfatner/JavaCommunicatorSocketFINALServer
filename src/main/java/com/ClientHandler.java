@@ -95,14 +95,17 @@ public class ClientHandler extends Thread {
                 String avaliableContactList = getAvaliableContactsList();
                 Message newMessage = new Message(EMessageType.SERVER_USERS, avaliableContactList);
                 output.writeObject(newMessage);
+                break;
             case TEXT:
                 if(m.getAdressee() != null){
                     SocketServer.getUserNameAndPrintWriterMap().get(m.getAdressee()).writeObject(m);
                 }
+                break;
             case JPG:
                 if(m.getAdressee() != null){
                     SocketServer.getUserNameAndPrintWriterMap().get(m.getAdressee()).writeObject(m);
                 }
+                break;
 
         }
     }
