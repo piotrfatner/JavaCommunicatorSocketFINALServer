@@ -14,7 +14,7 @@ import java.util.concurrent.Executors;
 public class SocketServer {
     private static SocketServer socketServerInstance = null;
     // All user names, so we can check for duplicates upon registration.
-    private static List<String> userNames = Arrays.asList("Piotr1", "Piotr2", "Piotr3");
+    private static List<String> userNames = Arrays.asList("Piotr1", "Piotr2", "Piotr3","AllUsers");
 
     // List og all print writers for all users / clients, used for broadcast
     private static List<ObjectOutputStream> userPrintWriters = new ArrayList<ObjectOutputStream>();

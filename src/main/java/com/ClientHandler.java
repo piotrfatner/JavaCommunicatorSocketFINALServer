@@ -41,7 +41,7 @@ public class ClientHandler extends Thread {
                     return;
                 }
                 synchronized (SocketServer.getUserNames()) {
-                    if (SocketServer.getUserNames().contains(name)) {
+                    if (SocketServer.getUserNames().contains(name) && !name.equals("AllUsers")) {
                         //SocketServer.getUserNames().add(name);
                         //SocketServer.getUserPrintWriters().add(output);
                         SocketServer.getUserNameAndPrintWriterMap().put(name, output);
@@ -57,7 +57,6 @@ public class ClientHandler extends Thread {
             //output.println("USER NAME ACCEPTED " + name);
             Message messageBack = new Message(EMessageType.SERVER_ACCEPTED, "USER NAME ACCEPTED " + name);
             output.writeObject(messageBack);
-
 
 
             // Listening new messages
@@ -90,23 +89,62 @@ public class ClientHandler extends Thread {
 
     public void handleMessage(Message m) throws IOException {
         // there is handling few kinds of messages
-        switch (m.geteMessageType()){
+        switch (m.geteMessageType()) {
             case SERVER_USERS:
                 String avaliableContactList = getAvaliableContactsList();
                 Message newMessage = new Message(EMessageType.SERVER_USERS, avaliableContactList);
                 output.writeObject(newMessage);
                 break;
             case TEXT:
-                if(m.getAdressee() != null){
-                    SocketServer.getUserNameAndPrintWriterMap().get(m.getAdressee()).writeObject(m);
+                if (m.getAdressee() != null) {
+                    if (!m.getAdressee().equals("AllUsers")) {
+                        SocketServer.getUserNameAndPrintWriterMap().get(m.getAdressee()).writeObject(m);
+                    } else {
+                        broadcastMessageToAll(m);
+                    }
                 }
                 break;
             case JPG:
-                if(m.getAdressee() != null){
-                    SocketServer.getUserNameAndPrintWriterMap().get(m.getAdressee()).writeObject(m);
+                if (m.getAdressee() != null) {
+                    if (!m.getAdressee().equals("AllUsers")) {
+                        SocketServer.getUserNameAndPrintWriterMap().get(m.getAdressee()).writeObject(m);
+                    } else {
+                        broadcastMessageToAll(m);
+                    }
                 }
                 break;
+            case PNG:
+                if (m.getAdressee() != null) {
+                    if (!m.getAdressee().equals("AllUsers")) {
+                        SocketServer.getUserNameAndPrintWriterMap().get(m.getAdressee()).writeObject(m);
+                    } else {
+                        broadcastMessageToAll(m);
+                    }
+                }
+            case PDF_FILE:
+                if (m.getAdressee() != null) {
+                    if (!m.getAdressee().equals("AllUsers")) {
+                        SocketServer.getUserNameAndPrintWriterMap().get(m.getAdressee()).writeObject(m);
+                    } else {
+                        broadcastMessageToAll(m);
+                    }
+                }
 
+        }
+    }
+
+    public void broadcastMessageToAll(Message m) throws IOException {
+        for (String userName : SocketServer.getUserNames()
+                ) {
+            if (!userName.equals("AllUsers") && SocketServer.getUserNameAndPrintWriterMap().get(userName) != null && !userName.equals(m.getSender())) {
+                Message broadcastMessage;
+                if(m.getTextMessage() != null){
+                    broadcastMessage= new Message(m.geteMessageType(),m.getTextMessage(), userName, "AllUsers");
+                } else{
+                    broadcastMessage = new Message(m.geteMessageType(),m.getFileMessage(), userName, "AllUsers");
+                }
+                SocketServer.getUserNameAndPrintWriterMap().get(userName).writeObject(broadcastMessage);
+            }
         }
     }
 
